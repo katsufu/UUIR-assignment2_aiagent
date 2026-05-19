@@ -1,0 +1,10 @@
+node_modules
+dist
+.env
+*.log
+.DS_Store
+
+# Local translation and deep-dive documentation (not for remote repo)
+docs/architecture_guide_ja.md
+docs/codebase_deep_dive_en.md
+docs/codebase_deep_dive_ja.md

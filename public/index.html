@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ukrainian Literary Assistant — AI Creative Writing Agent</title>
+  <meta name="description" content="State-of-the-art Ukrainian Creative Writing Agent with bidirectional style transformations.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Ambient glowing backgrounds -->
+    <div class="ambient-glow glow-1"></div>
+    <div class="ambient-glow glow-2"></div>
+
+    <header class="app-header">
+      <div class="header-brand">
+        <div class="brand-logo">🌾</div>
+        <div>
+          <h1>Український Літературний Асистент</h1>
+          <p class="subtitle">Ukrainian Literary Assistant | Bidirectional Style Transformations</p>
+        </div>
+      </div>
+      <div class="header-links">
+        <a href="https://github.com/katsufu/UUIR-assignment2.git" target="_blank" class="btn-secondary" id="github-link">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>
+          Repository
+        </a>
+      </div>
+    </header>
+
+    <main class="main-layout">
+      <!-- Sidebar / Configuration Controls -->
+      <section class="control-panel glass-card">
+        <form id="generation-form" class="custom-form">
+          <div class="form-group">
+            <label for="task-type">Task Type</label>
+            <select id="task-type" name="taskType" required>
+              <option value="stylistic_shift">Stylistic Transformation</option>
+              <option value="rhyme_and_rhythm">Metrical Poetry Analysis</option>
+            </select>
+          </div>
+
+          <div id="shift-options">
+            <div class="form-group">
+              <label for="shift-direction">Transformation Direction</label>
+              <select id="shift-direction" name="shiftDirection">
+                <option value="modern_to_classical">Modern ➔ Classical</option>
+                <option value="classical_to_modern">Classical ➔ Modern</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="source-style" id="source-style-label">Modern Sub-genre (From)</label>
+              <select id="source-style" name="sourceStyle"></select>
+            </div>
+
+            <div class="form-group">
+              <label for="target-style" id="target-style-label">Classical Author (To)</label>
+              <select id="target-style" name="targetStyle"></select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="task-prompt">Your Instructions (Optional)</label>
+            <textarea id="task-prompt" name="taskPrompt" rows="3" placeholder="Additional context or custom text to transform..."></textarea>
+          </div>
+
+          <button type="submit" class="btn-primary" id="btn-submit">
+            <span class="btn-text">Generate Text ✨</span>
+            <span class="spinner loader-hidden"></span>
+          </button>
+        </form>
+      </section>
+
+      <!-- Center & Right / Live Trace Timeline and Outputs -->
+      <section class="output-panel">
+        <!-- Trace execution block -->
+        <div class="trace-container glass-card">
+          <div class="panel-header">
+            <h3>Autonomous Execution Trace</h3>
+            <span class="status-indicator" id="loop-status">Idle</span>
+          </div>
+          <div class="timeline" id="trace-timeline">
+            <div class="empty-state">
+              <div class="empty-icon">⏳</div>
+              <p>Configure instructions and execute to trigger the reasoning loop.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Polished final output block -->
+        <div class="final-container glass-card glow-border">
+          <div class="panel-header">
+            <h3>Final Polished Result</h3>
+            <div class="header-actions" style="display: flex; gap: 10px; align-items: center;">
+              <button id="btn-tts" class="btn-secondary" style="display: none; padding: 0.3rem 0.6rem; font-size: 0.8rem;">
+                🔊 Read Aloud
+              </button>
+            </div>
+          </div>
+          <div class="result-box" id="final-output-box">
+            <p class="placeholder-text">Awaiting literary synthesis...</p>
+          </div>
+          <div class="phonetics-box" id="phonetics-output-box" style="display: none; margin-top: 1rem; padding: 1rem; background: rgba(0,0,0,0.05); border-radius: 8px; font-size: 0.9rem;">
+            <h4>🗣️ Pronunciation & Phonetics</h4>
+            <p id="phonetics-text"></p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="app-footer">
+      <p>Designed to support bidirectional text transformations while preserving cultural and historical fidelity.</p>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

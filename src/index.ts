@@ -1,4 +1,4 @@
-import { executeLiteraryTask } from './agent.ts';
+import { executeLiteraryTask } from './agent.js';
 
 /**
  * Compares the final polished text against the initial candidate draft

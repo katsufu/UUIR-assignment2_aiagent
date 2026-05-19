@@ -1,6 +1,6 @@
-import { callBergetAI, Message } from './backend.ts';
-import { getSkill, SkillName } from './skills.ts';
-import { availableTools, executeTool } from './tools.ts';
+import { callBergetAI, Message } from './backend.js';
+import { getSkill, SkillName } from './skills.js';
+import { availableTools, executeTool } from './tools.js';
 
 export interface AgentExecutionTrace {
   step: number;
@@ -20,10 +20,35 @@ export interface AgentResult {
 export async function executeLiteraryTask(
   taskPrompt: string,
   targetSkillName: SkillName,
-  maxSteps: number = 8
+  maxSteps: number = 8,
+  onStep?: (stepTrace: AgentExecutionTrace) => void
 ): Promise<AgentResult> {
   const trace: AgentExecutionTrace[] = [];
   const messages: Message[] = [];
+
+  let currentStep = 1;
+  let latestDraft: string | null = null;
+  let isApproved = false;
+
+  const pushTrace = (
+    action: 'reasoning' | 'tool_call' | 'draft' | 'critique' | 'refinement' | 'final_output',
+    details: string,
+    customStep?: number
+  ) => {
+    const stepTrace: AgentExecutionTrace = {
+      step: customStep !== undefined ? customStep : currentStep,
+      action,
+      details,
+    };
+    trace.push(stepTrace);
+    if (onStep) {
+      try {
+        onStep(stepTrace);
+      } catch (err) {
+        console.warn('[Streaming callback failed]', err);
+      }
+    }
+  };
 
   // 1. Load stateless skill instructions
   const skill = getSkill(targetSkillName);
@@ -37,15 +62,11 @@ export async function executeLiteraryTask(
     content: taskPrompt,
   });
 
-  trace.push({
-    step: 1,
-    action: 'reasoning',
-    details: `Initialized agent reasoning loop for skill '${targetSkillName}'. Task: "${taskPrompt}"`,
-  });
-
-  let currentStep = 1;
-  let latestDraft: string | null = null;
-  let isApproved = false;
+  pushTrace(
+    'reasoning',
+    `Initialized agent reasoning loop for skill '${targetSkillName}'. Task: "${taskPrompt}"`,
+    1
+  );
 
   while (currentStep <= maxSteps && !isApproved) {
     currentStep++;
@@ -58,15 +79,13 @@ export async function executeLiteraryTask(
       messages.push({
         role: 'assistant',
         content: response.content || '',
-        // Note: SDK compatible format handled internally in backend
       });
 
       for (const tc of response.toolCalls) {
-        trace.push({
-          step: currentStep,
-          action: 'tool_call',
-          details: `Invoking external tool '${tc.name}' with arguments: ${JSON.stringify(tc.arguments)}`,
-        });
+        pushTrace(
+          'tool_call',
+          `Invoking external tool '${tc.name}' with arguments: ${JSON.stringify(tc.arguments)}`
+        );
 
         try {
           const toolResult = await executeTool(tc.name, tc.arguments);
@@ -76,11 +95,10 @@ export async function executeLiteraryTask(
             content: toolResult,
           });
 
-          trace.push({
-            step: currentStep,
-            action: 'tool_call',
-            details: `Tool execution '${tc.name}' returned ${toolResult.length} characters of contextual payload.`,
-          });
+          pushTrace(
+            'tool_call',
+            `Tool execution '${tc.name}' returned ${toolResult.length} characters of contextual payload.`
+          );
         } catch (err: any) {
           messages.push({
             role: 'tool',
@@ -101,22 +119,21 @@ export async function executeLiteraryTask(
       content: replyText,
     });
 
-    // Check if the output contains a draft
-    if (replyText.includes('[DRAFT') || latestDraft === null) {
+    // Check if the output contains a draft (e.g., contains '[DRAFT' or 'Draft')
+    const isDraft = /\[DRAFT/i.test(replyText) || /Draft/i.test(replyText);
+    if (isDraft) {
       latestDraft = replyText;
-      trace.push({
-        step: currentStep,
-        action: 'draft',
-        details: `Generated candidate draft version:\n${replyText}`,
-      });
+      pushTrace(
+        'draft',
+        `Generated candidate draft version:\n${replyText}`
+      );
 
       // Enter the Self-Critique Phase
       currentStep++;
-      trace.push({
-        step: currentStep,
-        action: 'critique',
-        details: 'Initiating Self-Critique Phase: evaluating emotional resonance and linguistic purity against strict C2 standards.',
-      });
+      pushTrace(
+        'critique',
+        'Initiating Self-Critique Phase: evaluating emotional resonance and linguistic purity against strict C2 standards.'
+      );
 
       messages.push({
         role: 'system',
@@ -135,19 +152,17 @@ Output your detailed evaluation. If flawless, conclude exactly with [DECISION: A
         content: critiqueContent,
       });
 
-      trace.push({
-        step: currentStep,
-        action: 'critique',
-        details: `Self-Critique evaluation report:\n${critiqueContent}`,
-      });
+      pushTrace(
+        'critique',
+        `Self-Critique evaluation report:\n${critiqueContent}`
+      );
 
       if (critiqueContent.includes('[DECISION: APPROVE]')) {
         isApproved = true;
-        trace.push({
-          step: currentStep,
-          action: 'final_output',
-          details: 'Draft approved by self-critique engine. Requesting final formatting.',
-        });
+        pushTrace(
+          'final_output',
+          'Draft approved by self-critique engine. Requesting final formatting.'
+        );
         
         // Ask AI for the final formatted output including phonetics
         messages.push({
@@ -159,11 +174,10 @@ Output your detailed evaluation. If flawless, conclude exactly with [DECISION: A
         latestDraft = finalResponse.content.trim();
         
       } else {
-        trace.push({
-          step: currentStep,
-          action: 'refinement',
-          details: 'Deficiencies detected by self-critique engine. Triggering iterative refinement workflow based on feedback.',
-        });
+        pushTrace(
+          'refinement',
+          'Deficiencies detected by self-critique engine. Triggering iterative refinement workflow based on feedback.'
+        );
 
         messages.push({
           role: 'user',
@@ -172,11 +186,13 @@ Output your detailed evaluation. If flawless, conclude exactly with [DECISION: A
       }
     } else {
       // Incremental non-draft reasoning steps
-      trace.push({
-        step: currentStep,
-        action: 'reasoning',
-        details: `Intermediate reasoning state: ${replyText}`,
-      });
+      if (latestDraft === null) {
+        latestDraft = replyText;
+      }
+      pushTrace(
+        'reasoning',
+        `Intermediate reasoning state: ${replyText}`
+      );
     }
   }
 

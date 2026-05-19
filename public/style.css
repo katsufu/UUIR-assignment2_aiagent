@@ -611,3 +611,56 @@ select option {
     padding: 1rem;
   }
 }
+
+/* Premium Glassmorphic Gold style for Phonetics card */
+.phonetics-box {
+  background: linear-gradient(135deg, rgba(255, 213, 0, 0.08), rgba(255, 255, 255, 0.9)) !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 213, 0, 0.3) !important;
+  border-radius: 12px !important;
+  padding: 1.2rem !important;
+  margin-top: 1.5rem !important;
+  box-shadow: 0 4px 15px rgba(255, 213, 0, 0.08);
+  animation: slideUpFade 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  position: relative;
+  overflow: hidden;
+}
+
+.phonetics-box::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  background: var(--accent-secondary); /* Ukrainian Gold */
+}
+
+.phonetics-box h4 {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  color: var(--text-main);
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+#phonetics-text {
+  font-size: 0.88rem;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+@keyframes slideUpFade {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

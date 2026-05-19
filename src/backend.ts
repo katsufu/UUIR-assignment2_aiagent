@@ -67,15 +67,21 @@ export async function callBergetAI(
       const data = await response.json();
       const message = data.choices[0]?.message;
 
+      let rawContent = message?.content || '';
+      // Decode unicode escapes dynamically to fix character corruption
+      rawContent = decodeUnicodeEscapes(rawContent);
+
       const result: BackendResponse = {
-        content: message?.content || '',
+        content: rawContent,
       };
 
       if (message?.tool_calls && message.tool_calls.length > 0) {
         result.toolCalls = message.tool_calls.map((tc: any) => {
           let args = {};
           try {
-            args = JSON.parse(tc.function.arguments);
+            // Decode unicode escapes in arguments before parsing
+            let decodedArgs = decodeUnicodeEscapes(tc.function.arguments);
+            args = JSON.parse(decodedArgs);
           } catch (e) {
             // fallback if arguments string is malformed
           }
@@ -84,6 +90,30 @@ export async function callBergetAI(
             arguments: args,
           };
         });
+      } else {
+        // Fallback parser for LLMs outputting tool calls directly in raw text instead of standard JSON object
+        const parsedToolCalls: ToolCallDefinition[] = [];
+        const toolNames = ['synonym_lookup', 'etymology_check', 'reference_ukrlib'];
+        
+        for (const name of toolNames) {
+          const regex = new RegExp(`${name}\\s*\\(\\s*(\\{[\\s\\S]*?\\})\\s*\\)`, 'g');
+          let match;
+          while ((match = regex.exec(rawContent)) !== null) {
+            try {
+              let argsStr = match[1];
+              // Ensure backslashes are resolved properly for parsing
+              argsStr = decodeUnicodeEscapes(argsStr).replace(/(?:\\|¥|Y)u([0-9a-fA-F]{4})/g, '\\u$1');
+              const args = JSON.parse(argsStr);
+              parsedToolCalls.push({ name, arguments: args });
+            } catch (e) {
+              console.warn(`[Regex Tool Call Parse Fail] ${name}:`, e);
+            }
+          }
+        }
+        
+        if (parsedToolCalls.length > 0) {
+          result.toolCalls = parsedToolCalls;
+        }
       }
 
       return result;
@@ -303,3 +333,14 @@ The draft meets C2 literary standards and is ready for final presentation.`
 Як у Дніпра веселочка воду позичає.`
   };
 }
+
+/**
+ * Decodes Unicode escapes (\uXXXX, ¥uXXXX, YuXXXX) into pure UTF-8 strings.
+ */
+function decodeUnicodeEscapes(str: string): string {
+  if (!str) return '';
+  return str.replace(/(?:\\|¥|Y)+u([0-9a-fA-F]{4})/g, (match, grp) => {
+    return String.fromCharCode(parseInt(grp, 16));
+  });
+}
+

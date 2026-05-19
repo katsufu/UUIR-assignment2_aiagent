@@ -1,8 +1,8 @@
-import express from 'express';
+import express, { Request, Response } from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { executeLiteraryTask } from './agent.ts';
-import { SkillName } from './skills.ts';
+import { executeLiteraryTask } from './agent.js';
+import { SkillName } from './skills.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -20,7 +20,7 @@ app.use(express.static(path.join(__dirname, '../public')));
  * REST API Endpoint invoking the autonomous reasoning literary engine.
  * Accepts JSON body: { prompt: string, skill: SkillName }
  */
-app.post('/api/generate', async (req, res) => {
+app.post('/api/generate', async (req: Request, res: Response) => {
   try {
     const { prompt, skill } = req.body;
 
@@ -49,8 +49,80 @@ app.post('/api/generate', async (req, res) => {
   }
 });
 
+/**
+ * Express SSE streaming route for real-time literary agent trace updates.
+ * Accepts GET query parameters: ?prompt=...&skill=...
+ */
+app.get('/api/generate-stream', async (req: Request, res: Response) => {
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive',
+  });
+
+  const prompt = req.query.prompt as string;
+  const skill = (req.query.skill as SkillName) || 'stylistic_shift';
+
+  if (!prompt || typeof prompt !== 'string') {
+    res.write(`data: ${JSON.stringify({ type: 'error', message: 'A valid task prompt is required.' })}\n\n`);
+    res.end();
+    return;
+  }
+
+  try {
+    const result = await executeLiteraryTask(prompt, skill, 8, (stepTrace) => {
+      res.write(`data: ${JSON.stringify({ type: 'step', data: stepTrace })}\n\n`);
+    });
+
+    res.write(`data: ${JSON.stringify({ type: 'done', data: result })}\n\n`);
+    res.end();
+  } catch (error: any) {
+    console.error('Critical internal error in streaming endpoint:', error);
+    res.write(`data: ${JSON.stringify({ type: 'error', message: error.message || 'Internal Server Error' })}\n\n`);
+    res.end();
+  }
+});
+
+/**
+ * Backend TTS Proxy Endpoint to fetch audio streams from Google Translate TTS.
+ * Bypasses client-side CORS and Referer restrictions.
+ * Accepts GET query parameter: ?text=...
+ */
+app.get('/api/tts-proxy', async (req: Request, res: Response) => {
+  try {
+    const text = req.query.text as string;
+    if (!text || typeof text !== 'string') {
+      return res.status(400).send('A valid text string parameter is required.');
+    }
+
+    const googleTtsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=uk&client=tw-ob&q=${encodeURIComponent(text)}`;
+    
+    const response = await fetch(googleTtsUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        'Referer': 'https://translate.google.com/',
+        'Accept-Language': 'uk-UA,uk;q=0.9,en-US;q=0.8,en;q=0.7',
+      }
+    });
+
+    if (!response.ok) {
+      console.error(`Google Translate TTS responded with status: ${response.status}`);
+      return res.status(response.status).send('Failed to fetch speech audio from Google Translate TTS.');
+    }
+
+    res.setHeader('Content-Type', 'audio/mpeg');
+    
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    return res.send(buffer);
+  } catch (error: any) {
+    console.error('Critical internal server error in TTS proxy endpoint:', error);
+    return res.status(500).send('Internal Server Error in TTS proxy.');
+  }
+});
+
 // Fallback all routes to the main index client interface
-app.get('*', (req, res) => {
+app.get('*', (req: Request, res: Response) => {
   res.sendFile(path.join(__dirname, '../public/index.html'));
 });
 

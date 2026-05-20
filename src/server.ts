@@ -3,6 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { executeLiteraryTask } from './agent.js';
 import { SkillName } from './skills.js';
+import { checkSystemHealth } from './heartbeat.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -22,7 +23,7 @@ app.use(express.static(path.join(__dirname, '../public')));
  */
 app.post('/api/generate', async (req: Request, res: Response) => {
   try {
-    const { prompt, skill } = req.body;
+    const { prompt, skill, userMemory } = req.body;
 
     if (!prompt || typeof prompt !== 'string') {
       return res.status(400).json({
@@ -34,7 +35,7 @@ app.post('/api/generate', async (req: Request, res: Response) => {
     const targetSkill: SkillName = skill || 'stylistic_shift';
 
     // Execute the core literary agent reasoning cycle (max 8 steps default)
-    const result = await executeLiteraryTask(prompt, targetSkill);
+    const result = await executeLiteraryTask(prompt, targetSkill, 8, undefined, userMemory);
 
     return res.json({
       success: true,
@@ -62,6 +63,7 @@ app.get('/api/generate-stream', async (req: Request, res: Response) => {
 
   const prompt = req.query.prompt as string;
   const skill = (req.query.skill as SkillName) || 'stylistic_shift';
+  const userMemory = req.query.userMemory as string | undefined;
 
   if (!prompt || typeof prompt !== 'string') {
     res.write(`data: ${JSON.stringify({ type: 'error', message: 'A valid task prompt is required.' })}\n\n`);
@@ -72,7 +74,7 @@ app.get('/api/generate-stream', async (req: Request, res: Response) => {
   try {
     const result = await executeLiteraryTask(prompt, skill, 8, (stepTrace) => {
       res.write(`data: ${JSON.stringify({ type: 'step', data: stepTrace })}\n\n`);
-    });
+    }, userMemory);
 
     res.write(`data: ${JSON.stringify({ type: 'done', data: result })}\n\n`);
     res.end();
@@ -119,6 +121,16 @@ app.get('/api/tts-proxy', async (req: Request, res: Response) => {
     console.error('Critical internal server error in TTS proxy endpoint:', error);
     return res.status(500).send('Internal Server Error in TTS proxy.');
   }
+});
+
+/**
+ * REST Endpoint for system heartbeat and health checks.
+ * Completely secure: returns only boolean health statuses, zero configuration leaks.
+ */
+app.get('/api/heartbeat', (req: Request, res: Response) => {
+  const health = checkSystemHealth();
+  const statusCode = health.status === 'healthy' ? 200 : 503;
+  return res.status(statusCode).json(health);
 });
 
 // Fallback all routes to the main index client interface

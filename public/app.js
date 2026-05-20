@@ -17,11 +17,44 @@ document.addEventListener('DOMContentLoaded', () => {
   const phoneticsText = document.getElementById('phonetics-text');
   const btnTts = document.getElementById('btn-tts');
 
+  // Input Mode elements and state
+  const tabFreeform = document.getElementById('tab-freeform');
+  const tabPresets = document.getElementById('tab-presets');
+  const traditionalPresetsContainer = document.getElementById('traditional-presets-container');
+  const promptLabel = document.getElementById('prompt-label');
+  let activeInputMode = 'freeform'; // 'freeform' | 'presets'
+
   // Visual Progress Bar Elements
   const progressBarContainer = document.getElementById('progress-bar-container');
   const progressStepName = document.getElementById('progress-step-name');
   const progressFill = document.getElementById('progress-fill');
   const progressPercentage = document.getElementById('progress-percentage');
+
+  function showCustomToast(message, isSuccess = false) {
+    const existing = document.getElementById('app-toast-alert');
+    if (existing) existing.remove();
+
+    const toast = document.createElement('div');
+    toast.id = 'app-toast-alert';
+    toast.style.position = 'fixed';
+    toast.style.bottom = '20px';
+    toast.style.right = '20px';
+    toast.style.background = isSuccess ? 'rgba(46, 125, 50, 0.95)' : 'rgba(211, 47, 47, 0.95)';
+    toast.style.color = '#fff';
+    toast.style.padding = '0.8rem 1.2rem';
+    toast.style.borderRadius = '8px';
+    toast.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+    toast.style.zIndex = '10000';
+    toast.style.fontSize = '0.85rem';
+    toast.style.fontFamily = 'var(--font-sans)';
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => {
+      toast.style.transition = 'opacity 0.5s ease';
+      toast.style.opacity = '0';
+      setTimeout(() => toast.remove(), 500);
+    }, 4000);
+  }
 
   /**
    * Decodes Unicode escapes (\uXXXX, ¥uXXXX, YuXXXX) into pure UTF-8 strings.
@@ -100,18 +133,25 @@ document.addEventListener('DOMContentLoaded', () => {
   generationForm.addEventListener('submit', (e) => {
     e.preventDefault();
 
-    const taskType = taskTypeSelect.value;
+    const taskType = activeInputMode === 'freeform' ? 'custom_task' : taskTypeSelect.value;
     let compiledPrompt = taskPromptArea.value.trim();
 
-    if (taskType === 'stylistic_shift') {
-       const sourceLabel = sourceStyleSelect.options[sourceStyleSelect.selectedIndex].text;
-       const targetLabel = targetStyleSelect.options[targetStyleSelect.selectedIndex].text;
-       const baseContext = compiledPrompt ? `\n\nContext/Instructions: ${compiledPrompt}` : `\n\nContext/Instructions: Please invent a short original poem or monologue demonstrating this transformation.`;
-       compiledPrompt = `Transform the style of the following text (or concept) from '${sourceLabel}' to '${targetLabel}'. Ensure strict adherence to the target style's vocabulary and cultural context.${baseContext}`;
+    if (activeInputMode === 'freeform') {
+      if (!compiledPrompt) {
+        showCustomToast("⚠️ Please enter a creative prompt or instruction!");
+        return;
+      }
     } else {
-       if (!compiledPrompt) {
-          compiledPrompt = "Please analyze the rhythm, meter, and phonetics of a classical Ukrainian poem or compose one.";
-       }
+      if (taskType === 'stylistic_shift') {
+         const sourceLabel = sourceStyleSelect.options[sourceStyleSelect.selectedIndex].text;
+         const targetLabel = targetStyleSelect.options[targetStyleSelect.selectedIndex].text;
+         const baseContext = compiledPrompt ? `\n\nContext/Instructions: ${compiledPrompt}` : `\n\nContext/Instructions: Please invent a short original poem or monologue demonstrating this transformation.`;
+         compiledPrompt = `Transform the style of the following text (or concept) from '${sourceLabel}' to '${targetLabel}'. Ensure strict adherence to the target style's vocabulary and cultural context.${baseContext}`;
+      } else {
+         if (!compiledPrompt) {
+            compiledPrompt = "Please analyze the rhythm, meter, and phonetics of a classical Ukrainian poem or compose one.";
+         }
+      }
     }
 
     // Stop TTS if playing
@@ -145,8 +185,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     renderTraceTimeline(traceSteps);
 
+    // Retrieve linguistic profile memory (if any exists)
+    const userMemory = localStorage.getItem('ukrainian_literary_agent_profile') || '';
+
     // Initialize EventSource for SSE real-time streaming
-    const sseUrl = `/api/generate-stream?prompt=${encodeURIComponent(compiledPrompt)}&skill=${encodeURIComponent(taskType)}`;
+    let sseUrl = `/api/generate-stream?prompt=${encodeURIComponent(compiledPrompt)}&skill=${encodeURIComponent(taskType)}`;
+    if (userMemory) {
+      sseUrl += `&userMemory=${encodeURIComponent(userMemory)}`;
+    }
     const eventSource = new EventSource(sseUrl);
 
     eventSource.onmessage = (event) => {
@@ -160,6 +206,9 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (payload.type === 'done') {
           eventSource.close();
           const { trace, finalText } = payload.data;
+
+          // Update client-side compressed session memory (linguistic profile)
+          updateLinguisticProfile(taskType, compiledPrompt, finalText);
 
           // Decode potentially escaped unicode values in output
           let decodedFinalText = decodeUnicodeEscapes(finalText);
@@ -784,6 +833,91 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 100);
   }
 
+
+  // Handle tab switching
+  function switchInputMode(mode) {
+    activeInputMode = mode;
+    if (mode === 'freeform') {
+      tabFreeform.classList.add('active');
+      tabPresets.classList.remove('active');
+      traditionalPresetsContainer.style.display = 'none';
+      
+      promptLabel.textContent = 'Your Literary Prompt & Instructions (Required)';
+      taskPromptArea.placeholder = 'Enter any custom creative writing prompt in English or Ukrainian... e.g. Write a melancholic sonnet about Kyiv in spring in the style of Vasyl Stus, or Translate a modern cyberpunk paragraph into Kotliarevsky\'s burlesque style.';
+      taskPromptArea.required = true;
+    } else {
+      tabFreeform.classList.remove('active');
+      tabPresets.classList.add('active');
+      traditionalPresetsContainer.style.display = 'block';
+      
+      promptLabel.textContent = 'Additional Instructions / Custom Text (Optional)';
+      taskPromptArea.placeholder = 'Additional context, or custom text to transform using the selected presets above...';
+      taskPromptArea.required = false;
+    }
+  }
+
+  tabFreeform.addEventListener('click', () => switchInputMode('freeform'));
+  tabPresets.addEventListener('click', () => switchInputMode('presets'));
+  
+  // Set default mode on load
+  switchInputMode('freeform');
+
+  function updateLinguisticProfile(skill, prompt, resultText) {
+    try {
+      // 1. Read existing profile
+      let profile = localStorage.getItem('ukrainian_literary_agent_profile') || '';
+      
+      // 2. Extract key features of the current request
+      let currentStyle = '';
+      if (skill === 'stylistic_shift') {
+        const sourceLabel = sourceStyleSelect.options[sourceStyleSelect.selectedIndex].text;
+        const targetLabel = targetStyleSelect.options[targetStyleSelect.selectedIndex].text;
+        currentStyle = `Shift: ${sourceLabel} -> ${targetLabel}.`;
+      } else if (skill === 'rhyme_and_rhythm') {
+        currentStyle = 'Poetic analysis.';
+      } else {
+        // Freeform: extract key style/author keywords if present
+        const authorMatch = prompt.match(/style of ([A-Za-z\sА-Яа-яЄєІіЇїҐґ’]+)/i);
+        const styleMatch = prompt.match(/(sonnet|poem|monologue|burlesque|romanticism|cyberpunk)/i);
+        const authorKey = authorMatch ? authorMatch[1].trim() : '';
+        const styleKey = styleMatch ? styleMatch[1].trim() : '';
+        if (authorKey || styleKey) {
+          currentStyle = `Custom: ${styleKey} ${authorKey ? `in style of ${authorKey}` : ''}.`;
+        } else {
+          currentStyle = 'Custom creative task.';
+        }
+      }
+      
+      // Keep snippet extremely brief (first line, max 40 characters)
+      const cleanResultSnippet = resultText
+        .replace(/\[FINAL_OUTPUT\]/ig, '')
+        .replace(/\[PHONETICS\][\s\S]*/, '')
+        .replace(/\[DRAFT \d+\]/ig, '')
+        .trim();
+      const firstLine = cleanResultSnippet.split('\n')[0] || '';
+      const briefSnippet = firstLine.substring(0, 40).trim();
+      
+      // 3. Construct current run memory entry (max ~100 chars)
+      const currentEntry = `[${currentStyle.trim()} Last: "${briefSnippet}..."]`;
+      
+      // 4. Combine and compress (Keep only the last 2 runs to stay under 350-450 characters total!)
+      let profileEntries = profile ? profile.split(' | ') : [];
+      profileEntries.push(currentEntry);
+      
+      // Only keep the most recent 2 entries to be extremely token-efficient!
+      if (profileEntries.length > 2) {
+        profileEntries = profileEntries.slice(profileEntries.length - 2);
+      }
+      
+      profile = profileEntries.join(' | ');
+      
+      // 5. Store back
+      localStorage.setItem('ukrainian_literary_agent_profile', profile);
+      console.log('Updated user linguistic profile (localStorage):', profile);
+    } catch (e) {
+      console.warn('Failed to update linguistic profile:', e);
+    }
+  }
 
   function escapeHtml(str) {
     if (!str) return '';

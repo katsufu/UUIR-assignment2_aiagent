@@ -21,7 +21,8 @@ export async function executeLiteraryTask(
   taskPrompt: string,
   targetSkillName: SkillName,
   maxSteps: number = 8,
-  onStep?: (stepTrace: AgentExecutionTrace) => void
+  onStep?: (stepTrace: AgentExecutionTrace) => void,
+  userMemory?: string
 ): Promise<AgentResult> {
   const trace: AgentExecutionTrace[] = [];
   const messages: Message[] = [];
@@ -52,9 +53,16 @@ export async function executeLiteraryTask(
 
   // 1. Load stateless skill instructions
   const skill = getSkill(targetSkillName);
+  
+  let systemContext = `${skill.systemInstructions}\n\nCRITICAL DIRECTIVE: You are executing inside an autonomous reasoning loop. Whenever necessary, call tools (e.g., reference_ukrlib, synonym_lookup, etymology_check) to fetch precise linguistic context before outputting final literary text. Provide your generated draft prefaced with [DRAFT 1].`;
+  
+  if (userMemory && userMemory.trim().length > 0) {
+    systemContext = `[USER LITERARY PROFILE & HISTORY]:\n${userMemory}\n\n${systemContext}\n\nINSTRUCTION: In your reasoning traces (especially step 1 Context & Strategy Analysis) and self-critiques, actively refer to this user history if relevant, showing how you are customizing the current draft to respect their past feedback or build upon their preferred style. Do not just use a template trace.`;
+  }
+
   messages.push({
     role: 'system',
-    content: `${skill.systemInstructions}\n\nCRITICAL DIRECTIVE: You are executing inside an autonomous reasoning loop. Whenever necessary, call tools (e.g., reference_ukrlib, synonym_lookup, etymology_check) to fetch precise linguistic context before outputting final literary text. Provide your generated draft prefaced with [DRAFT 1].`,
+    content: systemContext,
   });
 
   messages.push({

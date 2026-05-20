@@ -5,7 +5,7 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-export type SkillName = 'stylistic_shift' | 'rhyme_and_rhythm';
+export type SkillName = 'stylistic_shift' | 'rhyme_and_rhythm' | 'custom_task';
 
 export interface Skill {
   name: SkillName;
@@ -37,5 +37,6 @@ export function getAllSkills(): Skill[] {
   return [
     getSkill('stylistic_shift'),
     getSkill('rhyme_and_rhythm'),
+    getSkill('custom_task'),
   ];
 }

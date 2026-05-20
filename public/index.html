@@ -34,47 +34,57 @@
  
     <main class="main-layout">
       <!-- Sidebar / Configuration Controls -->
-      <section class="control-panel glass-card">
-        <form id="generation-form" class="custom-form">
-          <div class="form-group">
-            <label for="task-type">Task Type</label>
-            <select id="task-type" name="taskType" required>
-              <option value="stylistic_shift">Stylistic Transformation</option>
-              <option value="rhyme_and_rhythm">Metrical Poetry Analysis</option>
-            </select>
-          </div>
- 
-          <div id="shift-options">
-            <div class="form-group">
-              <label for="shift-direction">Transformation Direction</label>
-              <select id="shift-direction" name="shiftDirection">
-                <option value="modern_to_classical">Modern ➔ Classical</option>
-                <option value="classical_to_modern">Classical ➔ Modern</option>
-              </select>
-            </div>
- 
-            <div class="form-group">
-              <label for="source-style" id="source-style-label">Modern Sub-genre (From)</label>
-              <select id="source-style" name="sourceStyle"></select>
-            </div>
- 
-            <div class="form-group">
-              <label for="target-style" id="target-style-label">Classical Author (To)</label>
-              <select id="target-style" name="targetStyle"></select>
-            </div>
-          </div>
- 
-          <div class="form-group">
-            <label for="task-prompt">Your Instructions (Optional)</label>
-            <textarea id="task-prompt" name="taskPrompt" rows="3" placeholder="Additional context or custom text to transform..."></textarea>
-          </div>
- 
-          <button type="submit" class="btn-primary" id="btn-submit">
-            <span class="btn-text">Generate Text ✨</span>
-            <span class="spinner loader-hidden"></span>
-          </button>
-        </form>
-      </section>
+       <section class="control-panel glass-card">
+         <form id="generation-form" class="custom-form">
+           <!-- Premium Interactive Tab Switcher -->
+           <div class="input-mode-tabs">
+             <button type="button" class="tab-btn active" id="tab-freeform" data-mode="freeform">✨ Free-form Agent</button>
+             <button type="button" class="tab-btn" id="tab-presets" data-mode="presets">📋 Preset Template</button>
+           </div>
+
+           <!-- Traditional Dropdown Selectors (Hidden by default in Free-form Mode) -->
+           <div id="traditional-presets-container" style="display: none; border-bottom: 1px dashed rgba(0,0,0,0.08); margin-bottom: 1.2rem; padding-bottom: 0.5rem;">
+             <div class="form-group">
+               <label for="task-type">Preset Task Type</label>
+               <select id="task-type" name="taskType">
+                 <option value="stylistic_shift">Stylistic Transformation</option>
+                 <option value="rhyme_and_rhythm">Metrical Poetry Analysis</option>
+               </select>
+             </div>
+    
+             <div id="shift-options">
+               <div class="form-group">
+                 <label for="shift-direction">Transformation Direction</label>
+                 <select id="shift-direction" name="shiftDirection">
+                   <option value="modern_to_classical">Modern ➔ Classical</option>
+                   <option value="classical_to_modern">Classical ➔ Modern</option>
+                 </select>
+               </div>
+    
+               <div class="form-group">
+                 <label for="source-style" id="source-style-label">Modern Sub-genre (From)</label>
+                 <select id="source-style" name="sourceStyle"></select>
+               </div>
+    
+               <div class="form-group">
+                 <label for="target-style" id="target-style-label">Classical Author (To)</label>
+                 <select id="target-style" name="targetStyle"></select>
+               </div>
+             </div>
+           </div>
+  
+           <!-- Prompt Textarea -->
+           <div class="form-group">
+             <label for="task-prompt" id="prompt-label">Your Literary Prompt & Instructions (Required)</label>
+             <textarea id="task-prompt" name="taskPrompt" rows="5" required placeholder="Enter any custom creative writing prompt in English or Ukrainian... e.g. Write a melancholic sonnet about Kyiv in spring in the style of Vasyl Stus, or Translate a modern cyberpunk paragraph into Kotliarevsky's burlesque style."></textarea>
+           </div>
+  
+           <button type="submit" class="btn-primary" id="btn-submit">
+             <span class="btn-text">Generate Text ✨</span>
+             <span class="spinner loader-hidden"></span>
+           </button>
+         </form>
+       </section>
  
       <!-- Center & Right / Live Trace Timeline and Outputs -->
       <section class="output-panel">

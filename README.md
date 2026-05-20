@@ -33,8 +33,9 @@ Whether you are a writer, poet, or language researcher, this application acts as
     *   Listen to creations spoken with native Ukrainian accents. 
     *   Uses an Express-based server-side TTS proxy (`/api/tts-proxy`) that bypasses client-side CORS blocks and local operating system voice package limitations.
     *   Features high-fidelity, real-time **Karaoke-style subtitle highlights** matching the spoken voice word-by-word.
-*   **🗣️ Phonetic Guidance**:
-    *   Provides explicit pronunciation rules, stress marks (наголоси), and phonetic insights below every generated result.
+*   **📚 Multi-Style Polishing**:
+    *   Expands capabilities beyond classical poetry to polish business prose, everyday conversational dialogue, and strict metrical structures.
+    *   Features intelligent programmatic post-processing to eliminate Russianisms and calques (e.g. automatically standardizing "вжити міри" to "вжити заходів" for C2 compliance).
 *   **🎨 Stunning Glassmorphic Web GUI**:
     *   Features modern, curated linen-beige aesthetics, floating ambient glowing background coordinates, and interactive developer trace drawers showing raw JSON payloads.
 

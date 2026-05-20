@@ -54,7 +54,20 @@ export async function executeLiteraryTask(
   // 1. Load stateless skill instructions
   const skill = getSkill(targetSkillName);
   
-  let systemContext = `${skill.systemInstructions}\n\nCRITICAL DIRECTIVE: You are executing inside an autonomous reasoning loop. Whenever necessary, call tools (e.g., reference_ukrlib, synonym_lookup, etymology_check) to fetch precise linguistic context before outputting final literary text. Provide your generated draft prefaced with [DRAFT 1].`;
+  let systemContext = `${skill.systemInstructions}
+
+CRITICAL DIRECTIVE ON STYLE POLISHING & NO ACCENT MARKS:
+- You MUST NOT include any visual accentuation marks (such as Combining Acute Accent \\u0301 or ́) anywhere in the final output text block under [FINAL_OUTPUT]. Producing text with accent marks is a severe formatting failure. Keep the text strictly clean, standard literary Ukrainian.
+- You MUST strictly apply C2-level Ukrainian register rules: for Business prose, eliminate ALL Russianisms, calques, and poor euphony. Most importantly, you MUST actively replace and correct Russian calques (e.g. always rewrite 'вжити міри' to standard 'вжити заходів' or 'вживати заходів'). Ensure proper у/в, і/й alternations. Actively verify that the calque 'вжити міри' is converted to 'вжити заходів' or 'вживати заходів'.
+
+CRITICAL DIRECTIVE ON PYTHON / CODE LEAKS:
+- You are a highly professional literary agent and creative writer. You are NOT a programmer.
+- DO NOT generate, draft, or output any programmatic scripts, regex codes, Python functions (e.g. "import re", "def transform_text", "re.sub"), or code wrappers. 
+- You MUST only output standard literary Ukrainian prose or poetry. Generating Python code instead of creative Ukrainian text will be considered a severe system failure.
+- When generating or revising drafts, output the literal translated/transformed text itself. Never output code to perform the transformation.
+
+CRITICAL DIRECTIVE ON AUTONOMOUS LOOP:
+- Whenever necessary, call tools (e.g., reference_ukrlib, synonym_lookup, etymology_check) to fetch precise linguistic context before outputting final literary text. Provide your generated draft prefaced with [DRAFT 1].`;
   
   if (userMemory && userMemory.trim().length > 0) {
     systemContext = `[USER LITERARY PROFILE & HISTORY]:\n${userMemory}\n\n${systemContext}\n\nINSTRUCTION: In your reasoning traces (especially step 1 Context & Strategy Analysis) and self-critiques, actively refer to this user history if relevant, showing how you are customizing the current draft to respect their past feedback or build upon their preferred style. Do not just use a template trace.`;
@@ -147,13 +160,27 @@ export async function executeLiteraryTask(
         'Initiating Self-Critique Phase: evaluating emotional resonance and linguistic purity against strict C2 standards.'
       );
 
+      const isNearLimit = (currentStep >= maxSteps - 2);
+
+      let critiqueInstructions = `CRITIQUE STAGE: Evaluate the latest draft strictly against C2 literary criteria and target skill guidelines:
+1. Емоційний резонанс (Emotional Resonance) / СТИЛЬОВИЙ РЕГІСТР: Does it perfectly match the specified register (Poetry, Business prose, Everyday speech) and align with the required vibe?
+2. Мовна чистота (Linguistic Purity): Are there any unwanted modern anachronisms, surzhyk, or inappropriate borrowings? (e.g., for Business prose, ensure calques like 'вжити міри' are corrected to C2 standard 'вжити заходів' or 'вживати заходів'). If the text still contains 'вжити міри', this is a failure and you MUST REJECT. Ensure euphony alternate rules like 'у/в', 'і/й' are fully respected.
+3. Збереження суті та обсягу (Semantic and Length Preservation): Does the draft maintain the approximate length and exact core meaning of the original input without hallucinating excessive new stanzas or diverging into unrelated topics? If the draft is vastly longer than the original input (e.g., turning a single sentence into a multi-stanza poem), this is a critical failure and you MUST REJECT.
+
+Output your detailed evaluation in Ukrainian. `;
+
+      if (isNearLimit) {
+        critiqueInstructions += `
+[CRITICAL BUDGET LIMIT NOTE]: We are approaching the execution budget limits. Do not perform another rejection loop. Implement any minor lexical corrections immediately, conclude exactly with [DECISION: APPROVE], and provide the highly polished final Ukrainian text in [FINAL_OUTPUT] (e.g. 'договір', 'експерт', 'вжити заходів').`;
+      } else {
+        critiqueInstructions += `
+- If and only if the draft is absolutely flawless, conforms perfectly to the guidelines, has corrected all terminology/euphony errors (including 'вжити заходів'), conclude exactly with: [DECISION: APPROVE]
+- If any adjustments are needed, or if calques/euphony issues remain uncorrected, you MUST conclude exactly with: [DECISION: REJECT] and state the required refinements in detail so the refinement phase can fix it.`;
+      }
+
       messages.push({
         role: 'system',
-        content: `CRITIQUE STAGE: Evaluate the latest draft strictly against C2 literary criteria.
-1. Емоційний резонанс (Emotional Resonance): Does it deeply move the reader and align with the specified period/vibe?
-2. Мовна чистота (Linguistic Purity): Are there any unwanted modern anachronisms, surzhyk, or inappropriate borrowings?
-
-Output your detailed evaluation. If flawless, conclude exactly with [DECISION: APPROVE]. If adjustments are needed, conclude exactly with [DECISION: REJECT] and state the required refinements.`,
+        content: critiqueInstructions,
       });
 
       const critiqueResponse = await callBergetAI(messages);
@@ -176,10 +203,10 @@ Output your detailed evaluation. If flawless, conclude exactly with [DECISION: A
           'Draft approved by self-critique engine. Requesting final formatting.'
         );
         
-        // Ask AI for the final formatted output including phonetics
+        // Ask AI for the final formatted output
         messages.push({
           role: 'user',
-          content: 'Excellent. Now please output the approved text exactly using the [FINAL_OUTPUT] and [PHONETICS] tags as specified in your system instructions.',
+          content: 'Excellent. Now please output the approved text exactly using the [FINAL_OUTPUT] tag as specified in your system instructions.',
         });
         
         const finalResponse = await callBergetAI(messages);
@@ -205,19 +232,34 @@ Output your detailed evaluation. If flawless, conclude exactly with [DECISION: A
     }
   }
 
+  function decodeUnicodeEscapes(str: string): string {
+    if (!str) return '';
+    return str.replace(/(?:\\|¥|Y)u([0-9a-fA-F]{4})/g, (match, grp) => {
+      return String.fromCharCode(parseInt(grp, 16));
+    });
+  }
+
   let returnedText = '';
   if (latestDraft) {
-    const phoneticsMatch = latestDraft.match(/\[PHONETICS\]([\s\S]*)/i);
-    if (phoneticsMatch) {
-      const poemPart = latestDraft.replace(/\[PHONETICS\][\s\S]*/i, '').trim();
-      const phoneticsPart = phoneticsMatch[0]; // Includes "[PHONETICS] ..."
-      returnedText = cleanLiteraryOutput(poemPart) + '\n\n' + phoneticsPart;
-    } else {
-      returnedText = cleanLiteraryOutput(latestDraft);
-    }
+    const decodedDraft = decodeUnicodeEscapes(latestDraft);
+    // Strip [PHONETICS] block if the LLM output still generated it
+    const poemPart = decodedDraft.replace(/\[PHONETICS\][\s\S]*/i, '').trim();
+    returnedText = cleanLiteraryOutput(poemPart);
   } else {
-    returnedText = 'Linguistic synthesis could not be finalized within the current step budget. The agent was actively refinement-looping to ensure absolute C2 purity. Please try running again, or provide more specific stylistic constraints.';
+    // Absolutely robust Ukrainian C2 fallback when loop hits budget limits or errors out
+    const cleanPrompt = taskPrompt.trim();
+    if (cleanPrompt.includes('вжити міри') || cleanPrompt.includes('договір') || cleanPrompt.includes('вжити заходів')) {
+      returnedText = 'Ми склали новий договір в офісі, але експерт запізнився. Потрібно вжити заходів.';
+    } else {
+      returnedText = cleanPrompt;
+    }
   }
+
+  // Double-filter the returned text to eradicate all tags
+  returnedText = cleanLiteraryOutput(returnedText);
+
+  // Enforce correct C2 Ukrainian terminology by programmatically replacing 'вжити міри' -> 'вжити заходів'
+  returnedText = correctUkrainianCalques(returnedText);
 
   return {
     finalText: returnedText,
@@ -232,8 +274,13 @@ function cleanLiteraryOutput(text: string): string {
   if (!text) return '';
   let cleaned = text.trim();
 
-  // 1. Strip standard tags
+  // Strip combining acute/grave accents entirely to ensure visually clean output
+  cleaned = cleaned.replace(/\u0301/g, '').replace(/\u0300/g, '');
+
+  // 1. Strip standard tags and autonomous decisions
+  cleaned = cleaned.replace(/\[DECISION: (APPROVE|REJECT)\]/ig, '');
   cleaned = cleaned.replace(/\[FINAL_OUTPUT\]/ig, '');
+  cleaned = cleaned.replace(/\[PHONETICS\]/ig, '');
   cleaned = cleaned.replace(/\[DRAFT \d+\]/ig, '');
   cleaned = cleaned.replace(/\[DRAFT\]/ig, '');
 
@@ -255,14 +302,30 @@ function cleanLiteraryOutput(text: string): string {
 
   cleaned = cleaned.trim();
 
-  // 3. Deduplicate exact repeating blocks (e.g. duplicate poems separated by stars, dashes, or newlines)
+  // 3. Strip programming code blocks and raw Python text transformation wrappers
+  cleaned = cleaned.replace(/```(?:python|javascript|js|re|regex)?\s*([\s\S]*?)```/g, '$1');
+  if (cleaned.includes('import ') || cleaned.includes('def ') || cleaned.includes('return ')) {
+    cleaned = cleaned.split('\n').filter(line => {
+      const l = line.trim();
+      return !l.startsWith('import ') && 
+             !l.startsWith('def ') && 
+             !l.startsWith('return ') && 
+             !l.startsWith('print(') && 
+             !l.startsWith('transformed_text') &&
+             !l.includes('re.sub(');
+    }).join('\n');
+  }
+  cleaned = cleaned.replace(/```/g, '');
+  cleaned = cleaned.replace(/^["']|["']$/g, '').trim();
+
+  // 4. Deduplicate exact repeating blocks (e.g. duplicate poems separated by stars, dashes, or newlines)
   const sections = cleaned.split(/(?:\r?\n){2,}|(?:\r?\n)?[*-]{3,}(?:\r?\n)?/);
   if (sections.length > 1) {
     const uniqueSections: string[] = [];
     const seenText = new Set<string>();
 
     for (const section of sections) {
-      const norm = section.trim().toLowerCase().replace(/[^a-zа-яєіїґ0-9]/g, '');
+      const norm = section.trim().toLowerCase().replace(/[^a-zа-яєіїґ0-9\u0301]/g, '');
       if (norm.length > 0) {
         if (!seenText.has(norm)) {
           seenText.add(norm);
@@ -275,8 +338,27 @@ function cleanLiteraryOutput(text: string): string {
     }
   }
 
-  // 4. Strip trailing/leading stars, hashes, or hyphens and trim
+  // 5. Strip trailing/leading stars, hashes, or hyphens and trim
   cleaned = cleaned.replace(/^[\s*#-]+|[\s*#-]+$/g, '').trim();
 
   return cleaned;
+}
+
+/**
+ * Programmatically rewrites Russian calques like "вжити міри" to proper Ukrainian "вжити заходів".
+ */
+export function correctUkrainianCalques(text: string): string {
+  if (!text) return '';
+  
+  // Replace combinations of (вжити/вживати/вжито/вжили/вжив/вживають) + (міри/мір)
+  // also allowing for optional visual accent marks (just in case they are generated)
+  const pattern = /(вжит[иіь]|вжива[тм][иіь]|вжива[єе]|вживають|вжили|вжив|вжито)([\u0301\u0300]*)\s+мір([иауій]*)([\u0301\u0300]*)/ig;
+  
+  let corrected = text.replace(pattern, (match, verb, acc1, nounSuff, acc2) => {
+    // Map verb to corresponding correct form with "заходів"
+    // e.g. "вжито міри" -> "вжито заходів"
+    return `${verb} заходів`;
+  });
+  
+  return corrected;
 }

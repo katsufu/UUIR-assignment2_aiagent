@@ -112,7 +112,7 @@ sequenceDiagram
     Agent-->>Server: Done (Final result)
     Server-->>app: SSE Message: data ({ type: "done" })
     app->>app: Update compressed localStorage style profile
-    app->>User: Display final text, trace steps, and pronunciation
+    app->>User: Display final text and trace steps
 ```
 
 ### 🔁 Deep Dive: Key Integrations

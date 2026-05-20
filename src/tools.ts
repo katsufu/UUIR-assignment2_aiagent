@@ -186,6 +186,7 @@ function referenceUkrlib(author: string, query: string): string {
       archive: 'UkrLib Digital Repository',
       author: 'Тарас Шевченко',
       query,
+      notes: 'ATTENTION: These snippets are strictly for stylistic cadence, meter, and tone referencing. DO NOT copy-paste, synonymize, or clone these poems unless explicitly instructed. Create completely original work on the user\'s requested theme.',
       snippets: [
         {
           work: 'Думи мої, думи мої (1840)',
@@ -201,6 +202,16 @@ function referenceUkrlib(author: string, query: string): string {
           work: 'Заповіт (1845)',
           text: 'Як умру, то поховайте\nМене на могилі\nСеред степу широкого\nНа Вкраїні милій...',
           cadenceAnalysis: 'Використання постійних епітетів ("степу широкого", "Вкраїні милій"), урочисто-заклична інтонація.',
+        },
+        {
+          work: 'Садок вишневий коло хати (1847)',
+          text: 'Садок вишневий коло хати,\nХрущі над вишнями гудуть,\nПлугатарі з плугами йдуть,\nСпівають ідучи дівчата,\nА матері вечерять ждуть.',
+          cadenceAnalysis: 'Ямб. Ідилічна пейзажна та побутова лірика. Відтворення теплої, гармонійної атмосфери українського вечора, звукові образи (хрущі, спів дівчат) та домашній затишок.',
+        },
+        {
+          work: 'Кавказ (1845)',
+          text: 'За горами гори, хмарою повиті,\nЗасіяні горем, кровію политі.\nСпоконвіку Прометея\nТам орел карає,\nЩодень боки розбиває,\nСерце не виїсть.',
+          cadenceAnalysis: 'Вільний вірш з елементами народної думи. Гнівно-викривальний, сатиричний та героїко-патетичний тон. Прометей як невмирущий символ нескореності народів перед тиранією.',
         }
       ],
     }, null, 2);

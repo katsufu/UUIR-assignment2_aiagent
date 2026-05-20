@@ -128,7 +128,11 @@ export async function executeLiteraryTask(
     });
 
     // Check if the output contains a draft (e.g., contains '[DRAFT' or 'Draft')
-    const isDraft = /\[DRAFT/i.test(replyText) || /Draft/i.test(replyText);
+    const isDraft = /\[DRAFT/i.test(replyText) || 
+                    /Draft/i.test(replyText) || 
+                    /Чорновик/i.test(replyText) || 
+                    /Проєкт/i.test(replyText) ||
+                    /\[FINAL_OUTPUT\]/i.test(replyText);
     if (isDraft) {
       latestDraft = replyText;
       pushTrace(
@@ -194,9 +198,6 @@ Output your detailed evaluation. If flawless, conclude exactly with [DECISION: A
       }
     } else {
       // Incremental non-draft reasoning steps
-      if (latestDraft === null) {
-        latestDraft = replyText;
-      }
       pushTrace(
         'reasoning',
         `Intermediate reasoning state: ${replyText}`
@@ -205,7 +206,7 @@ Output your detailed evaluation. If flawless, conclude exactly with [DECISION: A
   }
 
   return {
-    finalText: latestDraft || 'Failed to generate final text within step budget.',
+    finalText: latestDraft || 'Linguistic synthesis could not be finalized within the current step budget. The agent was actively refinement-looping to ensure absolute C2 purity. Please try running again, or provide more specific stylistic constraints.',
     trace,
   };
 }

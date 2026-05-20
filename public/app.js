@@ -777,7 +777,14 @@ document.addEventListener('DOMContentLoaded', () => {
         friendlyDetails = escapeHtml(decodedDetails).replace(/\n/g, '<br>');
       }
 
-      const act = actionMap[step.action] || { label: step.action.toUpperCase(), color: 'var(--text-muted)' };
+      let act = actionMap[step.action] || { label: step.action.toUpperCase(), color: 'var(--text-muted)' };
+      if (step.action === 'reasoning') {
+        if (step.step === 1) {
+          act = { label: '🧠 Initial Strategy & Context Analysis', color: '#005BBE' };
+        } else {
+          act = { label: '🧠 Autonomous Strategic Reasoning', color: '#6A1B9A' };
+        }
+      }
       const friendlyDetailsHtml = friendlyDetails || escapeHtml(decodedDetails).replace(/\n/g, '<br>');
       const detailsDetailsTag = jsonPayload ? `
         <details style="margin-top: 0.6rem; font-size: 0.8rem;">

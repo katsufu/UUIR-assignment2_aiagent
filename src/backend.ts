@@ -96,15 +96,29 @@ export async function callBergetAI(
         const toolNames = ['synonym_lookup', 'etymology_check', 'reference_ukrlib'];
         
         for (const name of toolNames) {
-          const regex = new RegExp(`${name}\\s*\\(\\s*(\\{[\\s\\S]*?\\})\\s*\\)`, 'g');
+          const regex = new RegExp(`${name}\\s*\\(\\s*([\\s\\S]*?)\\s*\\)`, 'g');
           let match;
           while ((match = regex.exec(rawContent)) !== null) {
             try {
               let argsStr = match[1];
               // Ensure backslashes are resolved properly for parsing
               argsStr = decodeUnicodeEscapes(argsStr).replace(/(?:\\|¥|Y)u([0-9a-fA-F]{4})/g, '\\u$1');
-              const args = JSON.parse(argsStr);
-              parsedToolCalls.push({ name, arguments: args });
+              
+              let args: Record<string, any> = {};
+              const trimmed = argsStr.trim();
+              if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+                try {
+                  args = JSON.parse(trimmed);
+                } catch (e) {
+                  args = parsePythonLikeArgs(trimmed);
+                }
+              } else {
+                args = parsePythonLikeArgs(trimmed);
+              }
+              
+              if (Object.keys(args).length > 0) {
+                parsedToolCalls.push({ name, arguments: args });
+              }
             } catch (e) {
               console.warn(`[Regex Tool Call Parse Fail] ${name}:`, e);
             }
@@ -342,5 +356,20 @@ function decodeUnicodeEscapes(str: string): string {
   return str.replace(/(?:\\|¥|Y)+u([0-9a-fA-F]{4})/g, (match, grp) => {
     return String.fromCharCode(parseInt(grp, 16));
   });
+}
+
+/**
+ * Parses Python-like function arguments (e.g., word="сонце", register="classical") into a key-value record.
+ */
+function parsePythonLikeArgs(argsStr: string): Record<string, any> {
+  const args: Record<string, any> = {};
+  const argRegex = /(\w+)\s*=\s*(?:"([^"\\]*(?:\\.[^"\\]*)*)"|'([^'\\]*(?:\\.[^'\\]*)*)'|([^\s,]+))/g;
+  let match;
+  while ((match = argRegex.exec(argsStr)) !== null) {
+    const key = match[1];
+    const val = match[2] !== undefined ? match[2] : (match[3] !== undefined ? match[3] : match[4]);
+    args[key] = val;
+  }
+  return args;
 }
 

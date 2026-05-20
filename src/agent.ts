@@ -205,8 +205,78 @@ Output your detailed evaluation. If flawless, conclude exactly with [DECISION: A
     }
   }
 
+  let returnedText = '';
+  if (latestDraft) {
+    const phoneticsMatch = latestDraft.match(/\[PHONETICS\]([\s\S]*)/i);
+    if (phoneticsMatch) {
+      const poemPart = latestDraft.replace(/\[PHONETICS\][\s\S]*/i, '').trim();
+      const phoneticsPart = phoneticsMatch[0]; // Includes "[PHONETICS] ..."
+      returnedText = cleanLiteraryOutput(poemPart) + '\n\n' + phoneticsPart;
+    } else {
+      returnedText = cleanLiteraryOutput(latestDraft);
+    }
+  } else {
+    returnedText = 'Linguistic synthesis could not be finalized within the current step budget. The agent was actively refinement-looping to ensure absolute C2 purity. Please try running again, or provide more specific stylistic constraints.';
+  }
+
   return {
-    finalText: latestDraft || 'Linguistic synthesis could not be finalized within the current step budget. The agent was actively refinement-looping to ensure absolute C2 purity. Please try running again, or provide more specific stylistic constraints.',
+    finalText: returnedText,
     trace,
   };
+}
+
+/**
+ * Cleans up raw literary text by stripping LLM preambles, bold markers, and duplicates.
+ */
+function cleanLiteraryOutput(text: string): string {
+  if (!text) return '';
+  let cleaned = text.trim();
+
+  // 1. Strip standard tags
+  cleaned = cleaned.replace(/\[FINAL_OUTPUT\]/ig, '');
+  cleaned = cleaned.replace(/\[DRAFT \d+\]/ig, '');
+  cleaned = cleaned.replace(/\[DRAFT\]/ig, '');
+
+  // 2. Strip standard LLM conversational preambles/conversational introduction phrases
+  const preambles = [
+    /Based on the results,?\s*(?:I will revise|here is|the revised)?\s*(?:the)?\s*poem\s*(?:as follows)?:?/i,
+    /Here is the (?:revised|transformed|final)?\s*(?:poem|text|translation|draft):?/i,
+    /Sure,?\s*here is/i,
+    /I will revise/i,
+    /Below is/i,
+    /\*\*Transformed Poem[^*]*\*\*/i,
+    /\*\*Poem[^*]*\*\*/i,
+    /\*\*Draft \d+[^*]*\*\*/i,
+  ];
+
+  for (const preamble of preambles) {
+    cleaned = cleaned.replace(preamble, '');
+  }
+
+  cleaned = cleaned.trim();
+
+  // 3. Deduplicate exact repeating blocks (e.g. duplicate poems separated by stars, dashes, or newlines)
+  const sections = cleaned.split(/(?:\r?\n){2,}|(?:\r?\n)?[*-]{3,}(?:\r?\n)?/);
+  if (sections.length > 1) {
+    const uniqueSections: string[] = [];
+    const seenText = new Set<string>();
+
+    for (const section of sections) {
+      const norm = section.trim().toLowerCase().replace(/[^a-zа-яєіїґ0-9]/g, '');
+      if (norm.length > 0) {
+        if (!seenText.has(norm)) {
+          seenText.add(norm);
+          uniqueSections.push(section.trim());
+        }
+      }
+    }
+    if (uniqueSections.length > 0) {
+      cleaned = uniqueSections.join('\n\n');
+    }
+  }
+
+  // 4. Strip trailing/leading stars, hashes, or hyphens and trim
+  cleaned = cleaned.replace(/^[\s*#-]+|[\s*#-]+$/g, '').trim();
+
+  return cleaned;
 }

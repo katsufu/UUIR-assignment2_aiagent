@@ -66,6 +66,62 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  /**
+   * Cleans up raw literary text by stripping LLM preambles, bold markers, and duplicates.
+   */
+  function cleanLiteraryOutput(text) {
+    if (!text) return '';
+    let cleaned = text.trim();
+
+    // 1. Strip standard tags
+    cleaned = cleaned.replace(/\[FINAL_OUTPUT\]/ig, '');
+    cleaned = cleaned.replace(/\[DRAFT \d+\]/ig, '');
+    cleaned = cleaned.replace(/\[DRAFT\]/ig, '');
+
+    // 2. Strip standard LLM conversational preambles/conversational introduction phrases
+    const preambles = [
+      /Based on the results,?\s*(?:I will revise|here is|the revised)?\s*(?:the)?\s*poem\s*(?:as follows)?:?/i,
+      /Here is the (?:revised|transformed|final)?\s*(?:poem|text|translation|draft):?/i,
+      /Sure,?\s*here is/i,
+      /I will revise/i,
+      /Below is/i,
+      /\*\*Transformed Poem[^*]*\*\*/i,
+      /\*\*Poem[^*]*\*\*/i,
+      /\*\*Draft \d+[^*]*\*\*/i,
+    ];
+
+    for (const preamble of preambles) {
+      cleaned = cleaned.replace(preamble, '');
+    }
+
+    cleaned = cleaned.trim();
+
+    // 3. Deduplicate exact repeating blocks (e.g. duplicate poems separated by stars, dashes, or newlines)
+    const sections = cleaned.split(/(?:\r?\n){2,}|(?:\r?\n)?[*-]{3,}(?:\r?\n)?/);
+    if (sections.length > 1) {
+      const uniqueSections = [];
+      const seenText = new Set();
+
+      for (let section of sections) {
+        const norm = section.trim().toLowerCase().replace(/[^a-zа-яєіїґ0-9]/g, '');
+        if (norm.length > 0) {
+          if (!seenText.has(norm)) {
+            seenText.add(norm);
+            uniqueSections.push(section.trim());
+          }
+        }
+      }
+      if (uniqueSections.length > 0) {
+        cleaned = uniqueSections.join('\n\n');
+      }
+    }
+
+    // 4. Strip trailing/leading stars, hashes, or hyphens and trim
+    cleaned = cleaned.replace(/^[\s*#-]+|[\s*#-]+$/g, '').trim();
+
+    return cleaned;
+  }
+
   function updateProgressBar(stepName, percentage) {
     if (progressStepName) progressStepName.textContent = stepName;
     if (progressPercentage) progressPercentage.textContent = `${percentage}%`;
@@ -234,9 +290,8 @@ document.addEventListener('DOMContentLoaded', () => {
              }
           }
           
-          // Strip [FINAL_OUTPUT] and [DRAFT] tags from UI display
-          displayResult = displayResult.replace(/\[FINAL_OUTPUT\]/ig, '').trim();
-          displayResult = displayResult.replace(/\[DRAFT \d+\]/ig, '').trim();
+          // Strip standard tags and clean up conversational preambles/duplicates
+          displayResult = cleanLiteraryOutput(displayResult);
 
           // Render polished final result
           finalOutputBox.innerHTML = `<div id="tts-content-wrapper">${escapeHtml(displayResult).replace(/\n/g, '<br>')}</div>`;

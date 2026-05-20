@@ -55,10 +55,7 @@ Assignment2/
 │   └── app.js          # Logic (Client state, Local Profile Memory, & Karaoke TTS)
 │
 ├── docs/               # Developer Documentation guides
-│   ├── architecture_guide_en.md
-│   ├── architecture_guide_ja.md
-│   ├── heartbeat_and_memory_guide.md
-│   └── codebase_deep_dive_en.md
+│   └── architecture_guide_en.md
 │
 ├── Dockerfile          # Container config for Hugging Face Spaces
 ├── package.json        # Node.js dependencies and run scripts

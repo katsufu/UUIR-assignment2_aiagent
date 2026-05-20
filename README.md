@@ -78,7 +78,6 @@ To ensure highly reliable deployments in production environments like **Hugging 
 
 Detailed deep dives are available inside the `docs/` directory:
 - [System Architecture Guide](docs/architecture_guide_en.md) - Core system design, SSE streaming protocols, and secure proxy integrations.
-- [Heartbeat & Personalization Memory Guide](docs/heartbeat_and_memory_guide.md) - Secure diagnostics and cost-effective local session memory.
 
 ---
 

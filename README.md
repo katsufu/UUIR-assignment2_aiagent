@@ -1,8 +1,8 @@
 ---
 title: Ukrainian Creative Writing Agent
 emoji: ✒️
-colorFrom: purple
-colorTo: blue
+colorFrom: blue
+colorTo: yellow
 sdk: docker
 pinned: false
 ---

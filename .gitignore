@@ -5,11 +5,6 @@ dist
 .DS_Store
 
 # Local translation and deep-dive documentation (not for remote repo)
-docs/architecture_guide_ja.md
-docs/codebase_deep_dive_en.md
-docs/codebase_deep_dive_ja.md
-docs/heartbeat_and_memory_guide_en.md
-docs/heartbeat_and_memory_guide_ja.md
-docs/typescript_guide_agent_ja.md
-docs/typescript_guide_agent_ja_beginner.md
-docs/typescript_guide_agent_ja_python.md
+docs/architecture/architecture_guide_ja.md
+docs/components/
+docs/operations/
